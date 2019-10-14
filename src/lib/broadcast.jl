@@ -62,7 +62,7 @@ unbroadcast(x::AbstractArray, x̄::Nothing) = nothing
 Numeric{T<:Number} = Union{T,AbstractArray{<:T}}
 
 @adjoint broadcasted(::typeof(+), xs::Numeric...) =
-  broadcast(+, xs...), ȳ -> (nothing, map(x -> unbroadcast(x, ȳ), xs)...)
+  broadcast(+, xs...), ȳ -> (nothing, map(x -> unbroadcast(x, ȳ), xs)...)
 
 @adjoint broadcasted(::typeof(*), x::Numeric, y::Numeric) = x.*y,
   z̄ -> (nothing, unbroadcast(x, z̄ .* conj.(y)), unbroadcast(y, z̄ .* conj.(x)))
@@ -74,12 +74,12 @@ end
 
 @adjoint function broadcasted(::typeof(σ), x::Numeric)
   y = σ.(x)
-  y, ȳ -> (nothing, ȳ .* conj.(y .* (1 .- y)))
+  y, ȳ -> (nothing, ȳ .* conj.(y .* (1 .- y)))
 end
 
 @adjoint function broadcasted(::typeof(tanh), x::Numeric)
   y = tanh.(x)
-  y, ȳ -> (nothing, ȳ .* conj.(1 .- y.^2))
+  y, ȳ -> (nothing, ȳ .* conj.(1 .- y.^2))
 end
 
 @adjoint broadcasted(::typeof(conj), x::Numeric) =
@@ -119,8 +119,8 @@ collapse_nothings(xs) = xs
   y∂b = _broadcast((x...) -> _pullback(__context__, f, x...), args...)
   y = map(x -> x[1], y∂b)
   ∂b = map(x -> x[2], y∂b)
-  y, function (ȳ)
-    dxs_zip = map((∂b, ȳ) -> ∂b(ȳ), ∂b, ȳ)
+  y, function (ȳ)
+    dxs_zip = map((∂b, ȳ) -> ∂b(ȳ), ∂b, ȳ)
     dxs = collapse_nothings.(ntuple(i -> map(x -> _get(x, i), dxs_zip), len))
     (nothing, accum_sum(dxs[1]), map(unbroadcast, args, Base.tail(dxs))...)
   end
@@ -129,8 +129,8 @@ end
 @adjoint function broadcasted(::AbstractArrayStyle{0}, f, args...)
   len = inclen(args)
   y, ∂b = _broadcast((x...) -> _pullback(__context__, f, x...), args...)
-  y, function (ȳ)
-    dxs = ∂b(ȳ)
+  y, function (ȳ)
+    dxs = ∂b(ȳ)
     (nothing, dxs...)
   end
 end
@@ -162,14 +162,14 @@ end
   out = dual_function(f).(args...)
   eltype(out) <: Dual || return (out, _ -> nothing)
   y = map(x -> x.value, out)
-  _back(ȳ, i) = unbroadcast(args[i], ((a, b) -> a*b.partials[i]).(ȳ, out))
-  back(ȳ) = ntuple(i -> _back(ȳ, i), N)
+  _back(ȳ, i) = unbroadcast(args[i], ((a, b) -> a*b.partials[i]).(ȳ, out))
+  back(ȳ) = ntuple(i -> _back(ȳ, i), N)
   return y, back
 end
 
 @init @require CuArrays="3a865a2d-5b23-5a0f-bc46-62713ec82fae" begin
   @adjoint function broadcasted(::Broadcast.ArrayStyle{CuArrays.CuArray}, f, args...)
-    y, back = broadcast_forward(f, args...)
-    y, ȳ -> (nothing, nothing, back(ȳ)...)
+    y, back = broadcast_forward(CuArrays.cufunc(f), args...)
+    y, ȳ -> (nothing, nothing, back(ȳ)...)
   end
 end
